@@ -1,9 +1,14 @@
 import json
 import os
 
+from typing import TypedDict
+
 from bilibili_api import Credential, sync
 
-from .utils import *
+
+class Cookies(TypedDict):
+    sessdata: str
+    bili_jct: str
 
 
 def check() -> str:
@@ -33,7 +38,7 @@ def login_from_cookies(sessdata: str, bili_jct: str) -> Credential:
     return credential
 
 
-def login_from_file(filepath: FilePath) -> Credential:
+def login_from_file(filepath) -> Credential:
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"Credential File {filepath} Not Found")
 

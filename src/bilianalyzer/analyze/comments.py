@@ -3,7 +3,7 @@ import os
 from collections import Counter
 from collections.abc import Collection
 
-from ..utils import *
+from .. import Member, Reply
 
 
 class MemberAnalyzer:
