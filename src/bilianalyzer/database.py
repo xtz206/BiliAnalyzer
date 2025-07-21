@@ -1,8 +1,10 @@
 from . import Member, Reply
 import sqlite3
-from typing import Optional
+from typing import Optional, TypeAlias, Any
 from collections.abc import Collection
 from bilibili_api.comment import CommentResourceType
+
+Record: TypeAlias = tuple[Any, ...]
 
 
 class Database:

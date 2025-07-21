@@ -1,3 +1,3 @@
-from typing import Any
+from typing import Any, TypeAlias
 
-ApiRaw = dict[str, Any]
+ApiRaw: TypeAlias = dict[str, Any]
