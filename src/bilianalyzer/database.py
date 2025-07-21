@@ -163,10 +163,10 @@ class Database:
             FROM REPLIES
             WHERE OID = ? AND OTYPE = ?
             """,
-            (oid, otype.value),
+            (oid, otype.name),
         )
 
-        records: list[tuple[int, str, int, str, int]] = self.cursor.fetchall()
+        records: list[Record] = self.cursor.fetchall()
         replies: list[Reply] = []
 
         for rpid, message, ctime, location, member_uid in records:
