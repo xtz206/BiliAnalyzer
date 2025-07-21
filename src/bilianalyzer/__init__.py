@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional
 
 from bilibili_api.comment import CommentResourceType
 
@@ -9,16 +9,13 @@ class Member:
 
     uid: int
     name: str
-    sex: str
-    sign: str
+    sex: Optional[str] = None
+    sign: Optional[str] = None
     level: Optional[int] = None
-    # pendant_name: str
-    # nameplate_name: str
-    # cardbg_name: str
-    # fans_medal_name: Optional[str] = None
-    # fans_medal_level: Optional[int] = None
-    # location: Optional[str] = None
-
+    vip: Optional[str] = None
+    pendant: Optional[str] = None
+    cardbag: Optional[str] = None
+    # TODO: fans medal
 
 @dataclass
 class Reply:

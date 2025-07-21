@@ -25,8 +25,10 @@ class MemberParser:
 
         uid: int = int(data["mid"])
         name: str = data["uname"]
-        sex: str = data.get("sex", "保密")
-        sign: str = data.get("sign", "")
+        sex: Optional[str] = None
+        if data.get("sex", "保密") != "保密":
+            sex = data.get("sex")
+        sign: Optional[str] = data.get("sign")
         level: Optional[int]
         if data.get("is_senior_member", 0) == 1:
             level = 7
@@ -34,12 +36,30 @@ class MemberParser:
             level_info = data.get("level_info", {})
             level = level_info.get("current_level", 0)
 
+        vip: str
+        if data.get("vip", {}).get("vipStatus") == 0:
+            vip = "非大会员"
+        else:
+            vip = data["vip"]["label"]["text"]
+
+        pendant: Optional[str] = None
+        cardbag: Optional[str] = None
+        if data["user_sailing"] is not None:
+            user_sailing: ApiRaw = data["user_sailing"]
+            if user_sailing["pendant"] is not None:
+                pendant = user_sailing["pendant"]["name"].strip()
+            if user_sailing["cardbg"] is not None:
+                cardbag = user_sailing["cardbg"]["name"].strip()
+
         return Member(
             uid=uid,
             name=name,
             sex=sex,
             sign=sign,
             level=level,
+            vip=vip,
+            pendant=pendant,
+            cardbag=cardbag,
         )
 
 
