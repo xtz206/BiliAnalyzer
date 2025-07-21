@@ -17,10 +17,13 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS MEMBERS (
                 UID INTEGER PRIMARY KEY,
-                NAME TEXT NOT NULL,
+                NAME TEXT NOT NULL UNIQUE,
                 SEX TEXT,
                 SIGN TEXT,
-                LEVEL INTEGER
+                LEVEL INTEGER,
+                VIP TEXT,
+                PENDANT TEXT,
+                CARDBAG TEXT
             )
             """
         )
@@ -28,35 +31,70 @@ class Database:
         for member in members:
             self.cursor.execute(
                 """
-                INSERT OR REPLACE INTO members (UID, NAME, SEX, SIGN, LEVEL)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO members (UID, NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (member.uid, member.name, member.sex, member.sign, member.level),
+                (
+                    member.uid,
+                    member.name,
+                    member.sex,
+                    member.sign,
+                    member.level,
+                    member.vip,
+                    member.pendant,
+                    member.cardbag,
+                ),
             )
         self.connection.commit()
 
     def load_members(self) -> list[Member]:
-        self.cursor.execute("SELECT UID, NAME, SEX, SIGN, LEVEL FROM MEMBERS")
-        records: list[tuple[int, str, str, str, int]] = self.cursor.fetchall()
+
+        self.cursor.execute(
+            """
+            SELECT NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG
+            FROM MEMBERS
+            """
+        )
+        records: list[Record] = self.cursor.fetchall()
         members = []
-        for uid, name, sex, sign, level in records:
-            members.append(Member(uid=uid, name=name, sex=sex, sign=sign, level=level))
+        for record in records:
+            uid, name, sex, sign, level, vip, pendant, cardbag = record
+            member = Member(
+                uid=uid,
+                name=name,
+                sex=sex,
+                sign=sign,
+                level=level,
+                vip=vip,
+                pendant=pendant,
+                cardbag=cardbag,
+            )
+            members.append(member)
         return members
 
     def load_member_by_uid(self, uid: int) -> Optional[Member]:
         self.cursor.execute(
             """
-            SELECT NAME, SEX, SIGN, LEVEL
+            SELECT NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG
             FROM MEMBERS
             WHERE UID = ?
             """,
             (uid,),
         )
-        record = self.cursor.fetchone()
+        record: Record = self.cursor.fetchone()
         if record is None:
             return None
-        name, sex, sign, level = record
-        return Member(uid=uid, name=name, sex=sex, sign=sign, level=level)
+        name, sex, sign, level, vip, pendant, cardbag = record
+        return Member(
+            uid=uid,
+            name=name,
+            sex=sex,
+            sign=sign,
+            level=level,
+            vip=vip,
+            pendant=pendant,
+            cardbag=cardbag,
+        )
 
     def save_replies(self, replies: Collection[Reply]) -> None:
         self.cursor.execute(
@@ -100,7 +138,7 @@ class Database:
             """
         )
 
-        records: list[tuple[int, int, int, str, int, str, int]] = self.cursor.fetchall()
+        records: list[Record] = self.cursor.fetchall()
         replies: list[Reply] = []
 
         for rpid, oid, otype, message, ctime, location, member_uid in records:
@@ -118,7 +156,7 @@ class Database:
             )
         return replies
 
-    def load_replies_by_bvid(self, oid: int, otype: CommentResourceType) -> list[Reply]:
+    def load_replies_by_resource(self, oid: int, otype: CommentResourceType) -> list[Reply]:
         self.cursor.execute(
             """
             SELECT RPID, MESSAGE, CTIME, LOCATION, MEMBER_UID
