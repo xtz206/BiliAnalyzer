@@ -17,7 +17,7 @@ class RawDatabase:
         self.cursor = self.connection.cursor()
         self.cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS RAW_REPLIES ()
+            CREATE TABLE IF NOT EXISTS RAW_REPLIES (
                 RPID INTEGER PRIMARY KEY,
                 OID INTEGER NOT NULL,
                 OTYPE TEXT NOT NULL,
@@ -37,9 +37,9 @@ class RawDatabase:
                 (
                     raw_reply["rpid"],
                     raw_reply["oid"],
-                    CommentResourceType(raw_reply["otype"]).name,
+                    CommentResourceType(raw_reply["type"]).name,
                     raw_reply["mid"],
-                    zlib.compress(json.dumps(raw_reply["raw"]).encode("utf-8")),
+                    zlib.compress(json.dumps(raw_reply).encode("utf-8")),
                 ),
             )
         self.connection.commit()
