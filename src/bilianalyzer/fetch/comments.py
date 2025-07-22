@@ -18,7 +18,7 @@ class Fetcher:
         self.bvid: str = bvid
         self.credential: Credential | None = credential
 
-    async def fetch_page(self, index: int) -> ApiRaw:
+    async def fetch_page(self, index: int = 1) -> ApiRaw:
         return await get_comments(
             bvid2aid(self.bvid),
             CommentResourceType.VIDEO,
@@ -26,57 +26,42 @@ class Fetcher:
             credential=self.credential,
         )
 
-    async def fetch_page_replies(self, index: int) -> list[Reply]:
-        page: ApiRaw = await get_comments(
-            bvid2aid(self.bvid),
-            CommentResourceType.VIDEO,
-            index,
-            credential=self.credential,
-        )
-        return [
-            ReplyParser.parse_from_api(reply_data)
-            for reply_data in page.get("replies", [])
-        ]
-
-    def flatten_replies(self, page: ApiRaw) -> list[Reply]:
-
-        if page.get("replies") is None:
-            return []
-
-        return [ReplyParser.parse_from_api(reply_data) for reply_data in page["replies"]]
-
-    async def fetch_replies(self, limit: int = 20) -> list[Reply]:
-        page: ApiRaw = await get_comments(
-            bvid2aid(self.bvid),
-            CommentResourceType.VIDEO,
-            credential=self.credential,
-        )
+    async def fetch_raw_replies(self, limit: int = 20) -> list[ApiRaw]:
+        page: ApiRaw = await self.fetch_page()
         reply_count: int = page.get("page", {}).get("count", 0)
-        replies: list[Reply] = []
         page_count: int = math.ceil(reply_count / COMMENTS_PER_PAGE)
+        raw_replies: list[ApiRaw] = self.unroll_page(page)
+        # TODO: hot replies (in field `top_replies`) and pinned replies (in field `upper-top`)
         page_index_range: Collection[int] = (
             range(2, page_count + 1)
             if limit == 0
             else range(2, min(page_count, limit) + 1)
         )
+
         # TODO: early termination if empty page is fetched
-
-        if page.get("replies") is not None:
-            for reply_data in page["replies"]:
-                replies.append(ReplyParser.parse_from_api(reply_data))
-        # TODO: hot replies (in field `top_replies`) and pinned replies (in field `upper-top`)
-
         semaphore = asyncio.Semaphore(5)
 
-        async def bounded_fetch(page_index: int) -> list[Reply]:
+        async def fetch_page_with_semaphore(page_index: int) -> ApiRaw:
             async with semaphore:
                 await asyncio.sleep(0.5 + random.random())
-                return await self.fetch_page_replies(page_index)
+                return await self.fetch_page(page_index)
 
-        tasks: list[Coroutine] = [bounded_fetch(index) for index in page_index_range]
+        tasks = [fetch_page_with_semaphore(index) for index in page_index_range]
+        pages: list[ApiRaw] = await asyncio.gather(*tasks)
 
-        pages_replies: list[list[Reply]] = await asyncio.gather(*tasks)
+        for page in pages:
+            raw_replies.extend(self.unroll_page(page))
+        return raw_replies
 
-        for page_replies in pages_replies:
-            replies.extend(page_replies)
+    async def fetch_replies(self, limit: int = 20) -> list[Reply]:
+        raw_replies: list[ApiRaw] = await self.fetch_raw_replies(limit)
+        replies: list[Reply] = []
+        for raw_reply in raw_replies:
+            replies.append(ReplyParser.parse_from_api(raw_reply))
         return replies
+
+    @staticmethod
+    def unroll_page(page: ApiRaw) -> list[ApiRaw]:
+        if page.get("replies") is None:
+            return []
+        return page["replies"]
