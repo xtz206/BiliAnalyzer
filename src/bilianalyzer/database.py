@@ -314,7 +314,7 @@ class ReplyDatabase:
         return Reply(
             rpid=rpid,
             oid=oid,
-            otype=CommentResourceType(otype),
+            otype=CommentResourceType[otype],
             message=message,
             ctime=ctime,
             location=location,
