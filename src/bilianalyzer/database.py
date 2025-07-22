@@ -1,10 +1,117 @@
 from . import Member, Reply
 import sqlite3
+import json
+import zlib
 from typing import Optional, TypeAlias, Any
 from collections.abc import Collection
 from bilibili_api.comment import CommentResourceType
 
+from .fetch import ApiRaw
+
 Record: TypeAlias = tuple[Any, ...]
+
+
+class RawDatabase:
+    def __init__(self, dbpath: str):
+        self.connection = sqlite3.connect(dbpath)
+        self.cursor = self.connection.cursor()
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS RAW_REPLIES ()
+                RPID INTEGER PRIMARY KEY,
+                OID INTEGER NOT NULL,
+                OTYPE TEXT NOT NULL,
+                MID INTEGER,
+                RAW BLOB
+            )
+            """
+        )
+
+    def save_raw_replies(self, raw_replies: Collection[ApiRaw]) -> None:
+        for raw_reply in raw_replies:
+            self.cursor.execute(
+                """
+                INSERT OR REPLACE INTO RAW_REPLIES (RPID, OID, OTYPE, MID, RAW)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    raw_reply["rpid"],
+                    raw_reply["oid"],
+                    CommentResourceType(raw_reply["otype"]).name,
+                    raw_reply["mid"],
+                    zlib.compress(json.dumps(raw_reply["raw"]).encode("utf-8")),
+                ),
+            )
+        self.connection.commit()
+
+    def load_raw_replies(self) -> list[ApiRaw]:
+        self.cursor.execute(
+            """
+            SELECT RPID
+            FROM RAW_REPLIES
+            """
+        )
+        records: list[Record] = self.cursor.fetchall()
+        raw_replies: list[ApiRaw] = []
+        for record in records:
+            (rpid,) = record
+            raw_reply = self.load_raw_reply_by_rpid(rpid)
+            if raw_reply is not None:
+                raw_replies.append(raw_reply)
+        return raw_replies
+
+    def load_raw_reply_by_rpid(self, rpid: int) -> Optional[ApiRaw]:
+        self.cursor.execute(
+            """
+            SELECT RAW
+            FROM RAW_REPLIES
+            WHERE RPID = ?
+            """,
+            (rpid,),
+        )
+        record: Record = self.cursor.fetchone()
+        if record is None:
+            return None
+        (raw,) = record
+        return ApiRaw(json.loads(zlib.decompress(raw).decode("utf-8")))
+
+    def load_raw_reply_by_resource(
+        self, oid: int, otype: CommentResourceType
+    ) -> list[ApiRaw]:
+        self.cursor.execute(
+            """
+            SELECT RPID
+            FROM RAW_REPLIES
+            WHERE OID = ? AND OTYPE = ?
+            """,
+            (oid, otype.name),
+        )
+        records: list[Record] = self.cursor.fetchall()
+        raw_replies: list[ApiRaw] = []
+        for record in records:
+            (rpid,) = record
+            raw_reply = self.load_raw_reply_by_rpid(rpid)
+            if raw_reply is not None:
+                raw_replies.append(raw_reply)
+        return raw_replies
+
+    def load_raw_reply_by_mid(self, mid: int) -> list[ApiRaw]:
+        self.cursor.execute(
+            """
+            SELECT RPID
+            FROM RAW_REPLIES
+            WHERE MID = ?
+            """,
+            (mid,),
+        )
+        records: list[Record] = self.cursor.fetchall()
+        raw_replies: list[ApiRaw] = []
+        for record in records:
+            (rpid,) = record
+            raw_reply = self.load_raw_reply_by_rpid(rpid)
+            if raw_reply is not None:
+                raw_replies.append(raw_reply)
+        return raw_replies
 
 
 class MemberDatabase:
