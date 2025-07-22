@@ -15,7 +15,6 @@ class Member:
     vip: Optional[str] = None
     pendant: Optional[str] = None
     cardbag: Optional[str] = None
-    raw: Optional[dict] = None
     # TODO: fans medal
 
 
@@ -29,7 +28,6 @@ class Reply:
     replies: Optional[list["Reply"]] = None
     location: Optional[str] = None
     member: Optional[Member] = None
-    raw: Optional[dict] = None
 
 
 @dataclass

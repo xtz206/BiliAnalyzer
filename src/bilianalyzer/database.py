@@ -21,8 +21,7 @@ class MemberDatabase:
                 LEVEL INTEGER,
                 VIP TEXT,
                 PENDANT TEXT,
-                CARDBAG TEXT,
-                RAW TEXT
+                CARDBAG TEXT
             )
             """
         )
@@ -33,8 +32,8 @@ class MemberDatabase:
         for member in members:
             self.cursor.execute(
                 """
-                INSERT OR REPLACE INTO members (UID, NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG, RAW)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO members (UID, NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     member.uid,
@@ -45,7 +44,6 @@ class MemberDatabase:
                     member.vip,
                     member.pendant,
                     member.cardbag,
-                    member.raw,
                 ),
             )
         self.connection.commit()
@@ -113,8 +111,7 @@ class ReplyDatabase:
                 MID INTEGER,
                 MESSAGE TEXT,
                 CTIME INTEGER,
-                LOCATION TEXT,
-                RAW TEXT
+                LOCATION TEXT
             )
             """
         )
@@ -127,8 +124,8 @@ class ReplyDatabase:
         for reply in replies:
             self.cursor.execute(
                 """
-                INSERT OR REPLACE INTO REPLIES (RPID, OID, OTYPE, MID, MESSAGE, CTIME, LOCATION, RAW)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO REPLIES (RPID, OID, OTYPE, MID, MESSAGE, CTIME, LOCATION)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     reply.rpid,
@@ -138,7 +135,6 @@ class ReplyDatabase:
                     reply.message,
                     reply.ctime,
                     reply.location,
-                    reply.raw
                 ),
             )
         self.connection.commit()
@@ -159,7 +155,9 @@ class ReplyDatabase:
                 replies.append(reply)
         return replies
 
-    def load_replies_by_resource(self, oid: int, otype: CommentResourceType) -> list[Reply]:
+    def load_replies_by_resource(
+        self, oid: int, otype: CommentResourceType
+    ) -> list[Reply]:
         self.cursor.execute(
             """
             SELECT RPID
