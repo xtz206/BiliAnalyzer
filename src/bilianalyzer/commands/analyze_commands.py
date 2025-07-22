@@ -3,10 +3,11 @@ from bilibili_api import bvid2aid
 from bilibili_api.comment import CommentResourceType
 from ..analyze.comments import CommentAnalyzer
 from ..database import ReplyDatabase, MemberDatabase
-from ..parse import MemberParser
+from ..parse import ReplyParser, MemberParser
 
 
 @click.argument("bvid", type=str)
+# TODO: readd analysis output
 # @click.option(
 #     "-o",
 #     "--output",
@@ -18,10 +19,12 @@ from ..parse import MemberParser
 def analyze(bvid):
     """Analyze comments from video with given BVID"""
 
-    member_db = MemberDatabase("bilianalyzer.db")
-    reply_db = ReplyDatabase("bilianalyzer.db", member_db)
+    member_parser = MemberParser()
+    member_db = MemberDatabase("bilianalyzer.db", member_parser)
+    reply_parser = ReplyParser(member_parser)
+    reply_db = ReplyDatabase("bilianalyzer.db", member_db, reply_parser)
     replies = reply_db.load_replies_by_resource(bvid2aid(bvid), CommentResourceType.VIDEO)
-    members = list(MemberParser.unroll_members(replies))
+    members = list(member_parser.unroll_members(replies))
     analyzer = CommentAnalyzer(members, replies)
     analysis = analyzer.generate_analysis()
 
@@ -29,8 +32,6 @@ def analyze(bvid):
     print("=" * 40)
     print("BiliAnalyzer 评论分析报告")
     print("=" * 40)
-    print(f"评论数量: {analysis.get('reply_count', 0)}")
-    print(f"用户数量: {analysis.get('member_count', 0)}")
     print()
 
     def print_dist(title, dist, unit="个", top=5):
@@ -53,6 +54,7 @@ def analyze(bvid):
     # 基础信息
     print(f"共分析 {analysis['reply_count']} 条评论")
     print(f"来自 {analysis['member_count']} 位用户")
+    print()
 
     # 用户分布信息
     print_dist("用户UID位数分布", analysis["uid_lengths"], "次")

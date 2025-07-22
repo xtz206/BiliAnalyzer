@@ -1,22 +1,30 @@
 import asyncio
 import math
 import random
-from collections.abc import Collection, Coroutine
+from typing import Optional
+from collections.abc import Collection
 
 from bilibili_api import Credential, bvid2aid
 from bilibili_api.comment import CommentResourceType, get_comments
 
 from .. import Reply
-from . import ApiRaw
-from ..parse import ReplyParser
+from ..parse import ApiRaw, ReplyParser
 
 COMMENTS_PER_PAGE = 20
 
 
 class Fetcher:
-    def __init__(self, bvid: str, credential: Credential | None = None):
+    def __init__(
+        self,
+        bvid: str,
+        credential: Optional[Credential] = None,
+        reply_parser: Optional[ReplyParser] = None,
+    ):
         self.bvid: str = bvid
-        self.credential: Credential | None = credential
+        self.credential: Optional[Credential] = credential
+        if reply_parser is None:
+            reply_parser = ReplyParser()
+        self.reply_parser: ReplyParser = reply_parser
 
     async def fetch_page(self, index: int = 1) -> ApiRaw:
         return await get_comments(
@@ -54,11 +62,10 @@ class Fetcher:
         return raw_replies
 
     async def fetch_replies(self, limit: int = 20) -> list[Reply]:
-        return self.parse_raw_replies(await self.fetch_raw_replies(limit=limit))
-
-    @staticmethod
-    def parse_raw_replies(raw_replies: Collection[ApiRaw]) -> list[Reply]:
-        return [ReplyParser.parse_from_api(raw_reply) for raw_reply in raw_replies]
+        raw_replies: list[ApiRaw] = await self.fetch_raw_replies(limit)
+        for raw_reply in raw_replies:
+            self.reply_parser.parse_from_api(raw_reply)
+        return self.reply_parser.replies
 
     @staticmethod
     def unroll_page(page: ApiRaw) -> list[ApiRaw]:

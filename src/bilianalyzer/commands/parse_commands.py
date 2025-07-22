@@ -2,7 +2,7 @@ import click
 from bilibili_api import bvid2aid
 from bilibili_api.comment import CommentResourceType
 from ..database import ReplyDatabase, MemberDatabase, RawDatabase
-from ..parse import ReplyParser
+from ..parse import ReplyParser, MemberParser
 
 
 @click.argument("bvid", type=str)
@@ -23,8 +23,12 @@ def parse(bvid):
         print(f"Please run 'uv run -m bilianalyzer fetch {bvid} -r' first")
         return
 
-    replies = [ReplyParser.parse_from_api(raw_reply) for raw_reply in raw_replies]
+    member_parser = MemberParser()
+    reply_parser = ReplyParser(member_parser)
+    replies = list(reply_parser.batch_parse_from_api(raw_replies))
+    members = list(member_parser.unroll_members(replies))
     reply_db.save_replies(replies)
+    member_db.save_members(members)
 
-    print(f"Successfully parsed {len(replies)} replies from stored raw data.")
+    print(f"Successfully parsed {len(replies)} raw replies from stored raw data.")
     print("Replies have been saved to the database.")

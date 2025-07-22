@@ -3,7 +3,7 @@ from bilibili_api import Credential, sync
 from ..auth import load_credential
 from ..fetch.comments import Fetcher
 from ..database import RawDatabase, ReplyDatabase, MemberDatabase
-from ..parse import MemberParser
+from ..parse import MemberParser, ReplyParser
 
 
 @click.argument("bvid", type=str)
@@ -36,7 +36,10 @@ def fetch(bvid, limit, raw, no_auth):
         except ValueError as error:
             print(f"Authentication Failed: {error}")
             return
-    fetcher = Fetcher(bvid, credential)
+
+    member_parser = MemberParser()
+    reply_parser = ReplyParser(member_parser)
+    fetcher = Fetcher(bvid, credential, reply_parser)
     raw_db = RawDatabase("bilianalyzer.db")
     member_db = MemberDatabase("bilianalyzer.db")
     reply_db = ReplyDatabase("bilianalyzer.db", member_db)
@@ -44,7 +47,7 @@ def fetch(bvid, limit, raw, no_auth):
     raw_replies = sync(fetcher.fetch_raw_replies(limit=limit))
     if raw:
         raw_db.save_raw_replies(raw_replies)
-    replies = fetcher.parse_raw_replies(raw_replies)
-    members = list(MemberParser.unroll_members(replies))
+    replies = reply_parser.batch_parse_from_api(raw_replies)
+    members = list(member_parser.unroll_members(replies))
     reply_db.save_replies(replies)
     member_db.save_members(members)

@@ -23,11 +23,17 @@ class Reply:
     rpid: int
     oid: int
     otype: CommentResourceType
+    mid: int
+    root: int
+    parent: int
     message: str
     ctime: int
-    replies: Optional[list["Reply"]] = None
-    location: Optional[str] = None
+
     member: Optional[Member] = None
+    root_reply: Optional["Reply"] = None
+    parent_reply: Optional["Reply"] = None
+    child_replies: Optional[list["Reply"]] = None
+    location: Optional[str] = None
 
 
 @dataclass

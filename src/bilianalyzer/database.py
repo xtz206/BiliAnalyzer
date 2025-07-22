@@ -1,14 +1,12 @@
-from . import Member, Reply
 import sqlite3
 import json
 import zlib
-from typing import Optional, TypeAlias, Any
+from typing import Optional
 from collections.abc import Collection
 from bilibili_api.comment import CommentResourceType
 
-from .fetch import ApiRaw
-
-Record: TypeAlias = tuple[Any, ...]
+from . import Member, Reply
+from .parse import MemberParser, ReplyParser, Record, ApiRaw
 
 
 class RawDatabase:
@@ -115,9 +113,13 @@ class RawDatabase:
 
 
 class MemberDatabase:
-    def __init__(self, dbpath: str):
+    def __init__(self, dbpath: str, member_parser: Optional[MemberParser] = None):
         self.connection = sqlite3.connect(dbpath)
         self.cursor = self.connection.cursor()
+        if member_parser is None:
+            member_parser = MemberParser()
+        self.member_parser = member_parser
+
         self.cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS MEMBERS (
@@ -132,8 +134,6 @@ class MemberDatabase:
             )
             """
         )
-        self.members: list[Member] = []
-        self.members_by_uid: dict[int, Member] = {}
 
     def save_members(self, members: Collection[Member]) -> None:
         for member in members:
@@ -167,23 +167,18 @@ class MemberDatabase:
         for record in records:
             (uid,) = record
             member = self.load_member_by_uid(uid)
-            members.append(member)
+            if member is not None:
+                members.append(member)
         return members
 
     def load_member_by_uid(self, uid: int) -> Optional[Member]:
-        if uid in self.members_by_uid:
-            return self.members_by_uid[uid]
-
-        member = self.__load_member_by_uid(uid)
+        member: Optional[Member] = self.member_parser.fetch_member(uid)
         if member is not None:
-            self.members_by_uid[uid] = member
-            self.members.append(member)
-        return member
+            return member
 
-    def __load_member_by_uid(self, uid: int) -> Optional[Member]:
         self.cursor.execute(
             """
-            SELECT NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG
+            SELECT UID, NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG
             FROM MEMBERS
             WHERE UID = ?
             """,
@@ -192,58 +187,62 @@ class MemberDatabase:
         record: Record = self.cursor.fetchone()
         if record is None:
             return None
-        name, sex, sign, level, vip, pendant, cardbag = record
-        return Member(
-            uid=uid,
-            name=name,
-            sex=sex,
-            sign=sign,
-            level=level,
-            vip=vip,
-            pendant=pendant,
-            cardbag=cardbag,
-        )
+        member = self.member_parser.parse_from_record(record)
+        return member
 
 
 class ReplyDatabase:
-    def __init__(self, dbpath: str, member_db: MemberDatabase):
+    def __init__(
+        self,
+        dbpath: str,
+        member_db: MemberDatabase,
+        reply_parser: Optional[ReplyParser] = None,
+    ):
         self.connection = sqlite3.connect(dbpath)
         self.cursor = self.connection.cursor()
+        if reply_parser is None:
+            reply_parser = ReplyParser(member_parser=member_db.member_parser)
+        self.reply_parser = reply_parser
+
         self.cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS REPLIES (
                 RPID INTEGER PRIMARY KEY,
                 OID INTEGER NOT NULL,
                 OTYPE TEXT NOT NULL,
-                MID INTEGER,
-                MESSAGE TEXT,
-                CTIME INTEGER,
+                MID INTEGER NOT NULL,
+                ROOT INTEGER NOT NULL,
+                PARENT INTEGER NOT NULL,
+                MESSAGE TEXT NOT NULL,
+                CTIME INTEGER NOT NULL,
                 LOCATION TEXT
             )
             """
         )
         self.member_db = member_db
-        self.replies = []
-        self.replies_by_rpid: dict[int, Reply] = {}
 
     def save_replies(self, replies: Collection[Reply]) -> None:
 
-        for reply in replies:
+        for reply in self.reply_parser.unroll_replies(replies):
             self.cursor.execute(
                 """
-                INSERT OR REPLACE INTO REPLIES (RPID, OID, OTYPE, MID, MESSAGE, CTIME, LOCATION)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO REPLIES
+                (RPID, OID, OTYPE, MESSAGE, CTIME, MID, ROOT, PARENT, LOCATION)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     reply.rpid,
                     reply.oid,
                     reply.otype.name,
-                    reply.member.uid if reply.member is not None else None,
                     reply.message,
                     reply.ctime,
+                    reply.mid,
+                    reply.root,
+                    reply.parent,
                     reply.location,
                 ),
             )
+
         self.connection.commit()
 
     def load_replies(self) -> list[Reply]:
@@ -283,19 +282,13 @@ class ReplyDatabase:
         return replies
 
     def load_reply_by_rpid(self, rpid: int) -> Optional[Reply]:
-        if rpid in self.replies_by_rpid:
-            return self.replies_by_rpid[rpid]
-
-        reply = self.__load_reply_by_rpid(rpid)
+        reply: Optional[Reply] = self.reply_parser.fetch_reply(rpid)
         if reply is not None:
-            self.replies_by_rpid[rpid] = reply
-            self.replies.append(reply)
-        return reply
+            return reply
 
-    def __load_reply_by_rpid(self, rpid: int) -> Optional[Reply]:
         self.cursor.execute(
             """
-            SELECT OID, OTYPE, MID, MESSAGE, CTIME, LOCATION
+            SELECT RPID, OID, OTYPE, MESSAGE, CTIME, MID, ROOT, PARENT, LOCATION
             FROM REPLIES
             WHERE RPID = ?
             """,
@@ -304,19 +297,30 @@ class ReplyDatabase:
         record: Record = self.cursor.fetchone()
         if record is None:
             return None
-        oid, otype, mid, message, ctime, location = record
-        if mid is None:
-            member = None
-        else:
-            member = self.member_db.load_member_by_uid(mid)
 
-        member = self.member_db.load_member_by_uid(mid) if mid else None
-        return Reply(
-            rpid=rpid,
-            oid=oid,
-            otype=CommentResourceType[otype],
-            message=message,
-            ctime=ctime,
-            location=location,
-            member=member,
+        reply = self.reply_parser.parse_from_record(record)
+
+        reply.member = self.member_db.load_member_by_uid(reply.mid)
+        if reply.root != 0:
+            reply.root_reply = self.load_reply_by_rpid(reply.root)
+        if reply.parent != 0:
+            reply.parent_reply = self.load_reply_by_rpid(reply.parent)
+
+        self.cursor.execute(
+            """
+            SELECT RPID
+            FROM REPLIES
+            WHERE ROOT = ?
+            """,
+            (rpid,),
         )
+        records: list[Record] = self.cursor.fetchall()
+        if records:
+            reply.child_replies = []
+            for record in records:
+                (child_rpid,) = record
+                child_reply = self.load_reply_by_rpid(child_rpid)
+                if child_reply is not None:
+                    reply.child_replies.append(child_reply)
+
+        return reply
