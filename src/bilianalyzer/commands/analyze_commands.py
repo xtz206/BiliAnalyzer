@@ -2,7 +2,7 @@ import click
 from bilibili_api import bvid2aid
 from bilibili_api.comment import CommentResourceType
 from ..analyze.comments import CommentAnalyzer
-from ..database import Database
+from ..database import ReplyDatabase, MemberDatabase
 from ..parse import MemberParser
 
 
@@ -18,8 +18,9 @@ from ..parse import MemberParser
 def analyze(bvid):
     """Analyze comments from video with given BVID"""
 
-    database = Database("bilianalyzer.db")
-    replies = database.load_replies_by_resource(bvid2aid(bvid), CommentResourceType.VIDEO)
+    member_db = MemberDatabase("bilianalyzer.db")
+    reply_db = ReplyDatabase("bilianalyzer.db", member_db)
+    replies = reply_db.load_replies_by_resource(bvid2aid(bvid), CommentResourceType.VIDEO)
     members = list(MemberParser.unroll_members(replies))
     analyzer = CommentAnalyzer(members, replies)
     analysis = analyzer.generate_analysis()

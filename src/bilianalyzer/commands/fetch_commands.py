@@ -2,7 +2,7 @@ import click
 from bilibili_api import Credential, sync
 from ..auth import load_credential
 from ..fetch.comments import Fetcher
-from ..database import Database
+from ..database import ReplyDatabase, MemberDatabase
 from ..parse import MemberParser
 
 
@@ -31,8 +31,9 @@ def fetch(bvid, limit, no_auth):
             print(f"Authentication Failed: {error}")
             return
     fetcher = Fetcher(bvid, credential)
-    database = Database("bilianalyzer.db")
+    member_db = MemberDatabase("bilianalyzer.db")
+    reply_db = ReplyDatabase("bilianalyzer.db", member_db)
     replies = sync(fetcher.fetch_replies(limit=limit))
     members = list(MemberParser.unroll_members(replies))
-    database.save_replies(replies)
-    database.save_members(members)
+    reply_db.save_replies(replies)
+    member_db.save_members(members)
