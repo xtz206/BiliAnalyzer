@@ -54,11 +54,11 @@ class Fetcher:
         return raw_replies
 
     async def fetch_replies(self, limit: int = 20) -> list[Reply]:
-        raw_replies: list[ApiRaw] = await self.fetch_raw_replies(limit)
-        replies: list[Reply] = []
-        for raw_reply in raw_replies:
-            replies.append(ReplyParser.parse_from_api(raw_reply))
-        return replies
+        return self.parse_raw_replies(await self.fetch_raw_replies(limit=limit))
+
+    @staticmethod
+    def parse_raw_replies(raw_replies: Collection[ApiRaw]) -> list[Reply]:
+        return [ReplyParser.parse_from_api(raw_reply) for raw_reply in raw_replies]
 
     @staticmethod
     def unroll_page(page: ApiRaw) -> list[ApiRaw]:

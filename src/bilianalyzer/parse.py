@@ -5,6 +5,7 @@ from bilibili_api.comment import CommentResourceType
 from . import Member, Reply
 from .fetch import ApiRaw
 
+
 class MemberParser:
 
     @staticmethod
