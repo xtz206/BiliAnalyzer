@@ -17,9 +17,10 @@ class MemberParser:
 
     def insert_member(self, member: Member) -> None:
         if member.uid in self.members_by_uid:
-            return
+            return None
         self.members.append(member)
         self.members_by_uid[member.uid] = member
+        return None
 
     def parse_from_api(self, data: ApiRaw) -> Member:
         if "mid" not in data:
@@ -124,9 +125,10 @@ class ReplyParser:
 
     def insert_reply(self, reply: Reply) -> None:
         if reply.rpid in self.replies_by_rpid:
-            return
+            return None
         self.replies.append(reply)
         self.replies_by_rpid[reply.rpid] = reply
+        return None
 
     def fetch_reply(self, rpid: int) -> Optional[Reply]:
         return self.replies_by_rpid.get(rpid)
