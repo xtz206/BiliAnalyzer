@@ -178,7 +178,7 @@ class MemberDatabase:
         for member in members:
             self.cursor.execute(
                 """
-                INSERT OR REPLACE INTO members (UID, NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG)
+                INSERT OR REPLACE INTO MEMBERS (UID, NAME, SEX, SIGN, LEVEL, VIP, PENDANT, CARDBAG)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
