@@ -2,7 +2,7 @@ from typing import Any, Optional, TypeAlias
 from collections.abc import Iterable, Collection
 from bilibili_api.comment import CommentResourceType
 
-from . import Member, Reply
+from . import Member, Reply, Video
 
 ApiRaw: TypeAlias = dict[str, Any]
 Record: TypeAlias = tuple[Any, ...]
@@ -226,3 +226,61 @@ class ReplyParser:
             yield reply
             if reply.child_replies is not None:
                 yield from ReplyParser.unroll_replies(reply.child_replies)
+
+
+class VideoParser:
+
+    videos: list[Video] = []
+    videos_by_bvid: dict[str, Video] = {}
+
+    def fetch_video(self, bvid: str) -> Optional[Video]:
+        return self.videos_by_bvid.get(bvid)
+
+    def insert_video(self, video: Video) -> None:
+        if video.bvid in self.videos_by_bvid:
+            return None
+        self.videos.append(video)
+        self.videos_by_bvid[video.bvid] = video
+        return None
+
+    def parse_from_api(self, data: ApiRaw) -> Video:
+        if "bvid" not in data:
+            raise ValueError("Invalid video data: field 'bvid' missing")
+        if "title" not in data:
+            raise ValueError("Invalid video data: field 'title' missing")
+
+        bvid: str = data["bvid"]
+        title: str = data["title"]
+        description: str = data.get("desc", "")
+        publish_time: int = int(data.get("pubdate", 0))
+        upload_time: int = int(data.get("ctime", 0))
+
+        if bvid in self.videos_by_bvid:
+            return self.videos_by_bvid[bvid]
+
+        video = Video(
+            bvid=bvid,
+            title=title,
+            description=description,
+            publish_time=publish_time,
+            upload_time=upload_time,
+        )
+
+        self.videos.append(video)
+        self.videos_by_bvid[bvid] = video
+        return video
+
+    def parse_from_record(self, record: Record) -> Video:
+        bvid, title, description, publish_time, upload_time = record
+        if bvid in self.videos_by_bvid:
+            return self.videos_by_bvid[bvid]
+        video = Video(
+            bvid=bvid,
+            title=title,
+            description=description,
+            publish_time=publish_time,
+            upload_time=upload_time,
+        )
+
+        self.insert_video(video)
+        return video

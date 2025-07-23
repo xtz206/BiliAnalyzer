@@ -38,8 +38,10 @@ class Reply:
 
 
 @dataclass
-class VideoInfo:
+class Video:
 
     bvid: str
     title: str
+    description: str
     publish_time: int
+    upload_time: int

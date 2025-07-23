@@ -5,8 +5,8 @@ from typing import Optional
 from collections.abc import Collection
 from bilibili_api.comment import CommentResourceType
 
-from . import Member, Reply
-from .parse import MemberParser, ReplyParser, Record, ApiRaw
+from . import Member, Reply, Video
+from .parse import MemberParser, ReplyParser, VideoParser, Record, ApiRaw
 
 
 class RawDatabase:
@@ -19,6 +19,16 @@ class RawDatabase:
                 RPID INTEGER PRIMARY KEY,
                 OID INTEGER NOT NULL,
                 OTYPE TEXT NOT NULL,
+                MID INTEGER,
+                RAW BLOB
+            )
+            """
+        )
+
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS RAW_VIDEOS (
+                BVID TEXT PRIMARY KEY,
                 MID INTEGER,
                 RAW BLOB
             )
@@ -110,6 +120,35 @@ class RawDatabase:
             if raw_reply is not None:
                 raw_replies.append(raw_reply)
         return raw_replies
+
+    def save_raw_video(self, raw_video: ApiRaw) -> None:
+        self.cursor.execute(
+            """
+            INSERT OR REPLACE INTO RAW_VIDEOS (BVID, MID, RAW)
+            VALUES (?, ?, ?)
+            """,
+            (
+                raw_video["bvid"],
+                raw_video.get("owner", {}).get("mid", 0),
+                zlib.compress(json.dumps(raw_video).encode("utf-8")),
+            ),
+        )
+        self.connection.commit()
+
+    def load_raw_video_by_bvid(self, bvid: str) -> Optional[ApiRaw]:
+        self.cursor.execute(
+            """
+            SELECT RAW
+            FROM RAW_VIDEOS
+            WHERE BVID = ?
+            """,
+            (bvid,),
+        )
+        record: Record = self.cursor.fetchone()
+        if record is None:
+            return None
+        (raw_video,) = record
+        return ApiRaw(json.loads(zlib.decompress(raw_video).decode("utf-8")))
 
 
 class MemberDatabase:
@@ -324,3 +363,55 @@ class ReplyDatabase:
                     reply.child_replies.append(child_reply)
 
         return reply
+
+
+class VideoDatabase:
+    def __init__(self, dbpath: str, video_parser: Optional[VideoParser] = None):
+        self.connection = sqlite3.connect(dbpath)
+        self.cursor = self.connection.cursor()
+        if video_parser is None:
+            video_parser = VideoParser()
+        self.video_parser = video_parser
+
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS VIDEOS (
+                BVID TEXT PRIMARY KEY,
+                TITLE TEXT NOT NULL,
+                DESCRIPTION TEXT,
+                PUBLISH_TIME INTEGER NOT NULL,
+                UPLOAD_TIME INTEGER NOT NULL
+            )
+            """
+        )
+
+    def save_video(self, video: Video) -> None:
+        self.cursor.execute(
+            """
+            INSERT OR REPLACE INTO VIDEOS (BVID, TITLE, DESCRIPTION, PUBLISH_TIME, UPLOAD_TIME)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                video.bvid,
+                video.title,
+                video.description,
+                video.publish_time,
+                video.upload_time,
+            ),
+        )
+        self.connection.commit()
+
+    def load_video_by_bvid(self, bvid: str) -> Optional[Video]:
+        self.cursor.execute(
+            """
+            SELECT BVID, TITLE, DESCRIPTION, PUBLISH_TIME, UPLOAD_TIME
+            FROM VIDEOS
+            WHERE BVID = ?
+            """,
+            (bvid,),
+        )
+        record: Record = self.cursor.fetchone()
+        if record is None:
+            return None
+        video = self.video_parser.parse_from_record(record)
+        return video
