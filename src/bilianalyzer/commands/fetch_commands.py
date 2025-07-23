@@ -7,6 +7,7 @@ from ..database import RawDatabase, ReplyDatabase, MemberDatabase, VideoDatabase
 from ..parse import MemberParser, ReplyParser, VideoParser
 
 
+# TODO: add type hint for command
 @click.argument("bvid", type=str)
 @click.option(
     "-n",

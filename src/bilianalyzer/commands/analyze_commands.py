@@ -6,6 +6,7 @@ from ..database import ReplyDatabase, MemberDatabase, VideoDatabase
 from ..parse import ReplyParser, MemberParser, VideoParser
 
 
+# TODO: add type hint for command
 @click.argument("bvid", type=str)
 @click.option(
     "-o",
@@ -86,5 +87,5 @@ def analyze(bvid, output):
     print("=" * 40)
 
     if output is not None:
-    analyzer.save_analysis(output)
+        analyzer.save_analysis(output)
         print(f"分析结果已保存至{output}")

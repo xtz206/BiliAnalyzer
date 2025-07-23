@@ -5,6 +5,7 @@ from ..database import ReplyDatabase, MemberDatabase, VideoDatabase, RawDatabase
 from ..parse import ReplyParser, MemberParser, VideoParser
 
 
+# TODO: add type hint for command
 @click.argument("bvid", type=str)
 @click.command(help="Parse comments from video with given BVID")
 def parse(bvid):
