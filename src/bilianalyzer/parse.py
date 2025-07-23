@@ -266,8 +266,7 @@ class VideoParser:
             upload_time=upload_time,
         )
 
-        self.videos.append(video)
-        self.videos_by_bvid[bvid] = video
+        self.insert_video(video)
         return video
 
     def parse_from_record(self, record: Record) -> Video:
