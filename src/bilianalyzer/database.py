@@ -163,7 +163,7 @@ class MemberDatabase:
             """
             CREATE TABLE IF NOT EXISTS MEMBERS (
                 UID INTEGER PRIMARY KEY,
-                NAME TEXT NOT NULL UNIQUE,
+                NAME TEXT NOT NULL,
                 SEX TEXT,
                 SIGN TEXT,
                 LEVEL INTEGER,
