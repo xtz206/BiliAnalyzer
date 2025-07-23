@@ -2,9 +2,10 @@
 
 ## 功能/Features
 
-- [ ] 支持自定义输出路径 （目前硬编码）
-- [ ] 增加设置功能 （目前硬编码）
-- [ ] 增加更多的命令行参数/选项
+- [ ] 为 Parse Subcommand 添加视频信息解析功能
+- [ ] 添加 List Subcommand 来列出视频/评论信息
+- [ ] 添加 View Subcommand 来查看视频/评论信息
+- [ ] 添加 Export Subcommand 来导出数据为 CSV/JSON 格式
 
 ## 修复/Fixes
 
