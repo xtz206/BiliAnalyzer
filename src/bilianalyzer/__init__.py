@@ -15,7 +15,8 @@ class Member:
     vip: Optional[str] = None
     pendant: Optional[str] = None
     cardbag: Optional[str] = None
-    # TODO: fans medal
+    # TODO: refactor pendant and cardbag
+    # TODO: readd fans medal
 
 
 @dataclass

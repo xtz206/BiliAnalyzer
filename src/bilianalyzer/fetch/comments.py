@@ -13,7 +13,7 @@ from ..parse import ApiRaw, ReplyParser
 COMMENTS_PER_PAGE = 20
 
 
-class Fetcher:
+class ReplyFetcher:
     def __init__(
         self,
         bvid: str,

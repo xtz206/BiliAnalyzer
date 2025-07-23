@@ -1,7 +1,7 @@
 import click
 from bilibili_api import Credential, sync
 from ..auth import load_credential
-from ..fetch.comments import Fetcher
+from ..fetch.comments import ReplyFetcher
 from ..database import RawDatabase, ReplyDatabase, MemberDatabase
 from ..parse import MemberParser, ReplyParser
 
@@ -39,12 +39,12 @@ def fetch(bvid, limit, raw, no_auth):
 
     member_parser = MemberParser()
     reply_parser = ReplyParser(member_parser)
-    fetcher = Fetcher(bvid, credential, reply_parser)
+    reply_fetcher = ReplyFetcher(bvid, credential, reply_parser)
     raw_db = RawDatabase("bilianalyzer.db")
     member_db = MemberDatabase("bilianalyzer.db")
     reply_db = ReplyDatabase("bilianalyzer.db", member_db)
 
-    raw_replies = sync(fetcher.fetch_raw_replies(limit=limit))
+    raw_replies = sync(reply_fetcher.fetch_raw_replies(limit=limit))
     if raw:
         raw_db.save_raw_replies(raw_replies)
     replies = reply_parser.batch_parse_from_api(raw_replies)
