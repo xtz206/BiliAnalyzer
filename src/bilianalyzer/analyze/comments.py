@@ -1,7 +1,8 @@
+from typing import Optional
 from collections import Counter
 from collections.abc import Collection
 
-from .. import Member, Reply
+from .. import Member, Reply, Video
 
 
 class MemberAnalyzer:
@@ -36,6 +37,7 @@ class MemberAnalyzer:
                 sexes[member.sex] += 1
         return sexes
 
+    # TODO: refactor pendants and cardbags
     def analyze_pendants(self) -> Counter[str]:
         # NOTE: pendant 表示头像框，叠加在头像上
         pendants: Counter[str] = Counter()
@@ -46,6 +48,7 @@ class MemberAnalyzer:
                 pendants[member.pendant] += 1
         return pendants
 
+    # TODO: refactor pendants and cardbags
     def analyze_cardbags(self) -> Counter[str]:
         # NOTE: cardbag 表示数字周边，出现在评论右侧
         cardbags: Counter[str] = Counter()
@@ -56,6 +59,7 @@ class MemberAnalyzer:
                 cardbags[member.cardbag] += 1
         return cardbags
 
+    # TODO: readd fans medal
     """
     def analyze_fans(self) -> tuple[str, int, Counter[int]]:
         # TODO: 用更好的方式返回值
@@ -91,13 +95,14 @@ class ReplyAnalyzer:
 class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
     def __init__(
         self,
+        video: Video,
         members: Collection[Member],
         replies: Collection[Reply],
     ):
+        self.video: Video = video
         MemberAnalyzer.__init__(self, members)
         ReplyAnalyzer.__init__(self, replies)
 
-    """
     @staticmethod
     def _calc_interval_name(start_time: int, end_time: int) -> str:
 
@@ -115,7 +120,8 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
             72.0,
         ]
         INTERVAL_NAMES: list[str] = [
-            "超时空评论",  # NOTE: just kidding
+            # NOTE: "超时空评论" is just for fun and in case of special cases
+            "超时空评论",
             "半小时内",
             "0.5-1小时内",
             "1-2小时内",
@@ -134,20 +140,19 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
 
     def analyze_comment_intervals(self) -> Counter[str]:
 
-        publish_time: int = self.video_info.get("pubdate", 0)
+        publish_time: int = self.video.publish_time
         comment_intervals: Counter[str] = Counter()
 
         for reply in self.replies:
-            comment_time: int | None = reply.get("ctime")
+            comment_time: Optional[int] = reply.ctime
             if comment_time is None:
                 continue
             comment_intervals[self._calc_interval_name(publish_time, comment_time)] += 1
 
         return comment_intervals
-    """
 
     def generate_analysis(self):
-        # DEBUG: video_info: VideoInfo = self.video_info
+        video: Video = self.video
         reply_count: int = len(self.replies)
         member_count: int = len(self.members)
         uid_lengths: Counter[int] = self.analyze_uid_lengths()
@@ -159,9 +164,13 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
         pendants: Counter[str] = self.analyze_pendants()
         cardbags: Counter[str] = self.analyze_cardbags()
         locations: Counter[str] = self.analyze_locations()
-        # DEBUG: comment_intervals: Counter[str] = self.analyze_comment_intervals()
+        comment_intervals: Counter[str] = self.analyze_comment_intervals()
         analysis = {
-            # DEBUG: "video_info": video_info,
+            "bvid": video.bvid,
+            "title": video.title,
+            "description": video.description,
+            "publish_time": video.publish_time,
+            "upload_time": video.upload_time,
             "reply_count": reply_count,
             "member_count": member_count,
             "uid_lengths": uid_lengths,
@@ -173,11 +182,12 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
             # TODO: refactor pendants and cardbags
             # TODO: readd fans medal
             "locations": locations,
-            # DEBUG: "comment_intervals": comment_intervals,
+            "comment_intervals": comment_intervals,
         }
         return analysis
 
 
+# DEBUG:
 """
 def save_analysis(results: Analysis, filepath: FilePath) -> None:
     os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
