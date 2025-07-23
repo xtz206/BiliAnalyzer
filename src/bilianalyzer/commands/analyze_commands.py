@@ -28,7 +28,6 @@ def analyze(bvid):
     analyzer = CommentAnalyzer(members, replies)
     analysis = analyzer.generate_analysis()
 
-    # 命令行格式化输出分析报告
     print("=" * 40)
     print("BiliAnalyzer 评论分析报告")
     print("=" * 40)
@@ -51,24 +50,23 @@ def analyze(bvid):
                 print("  ...")
         print()
 
-    # 基础信息
     print(f"共分析 {analysis['reply_count']} 条评论")
     print(f"来自 {analysis['member_count']} 位用户")
     print()
 
-    # 用户分布信息
     print_dist("用户UID位数分布", analysis["uid_lengths"], "次")
     print_dist("用户等级分布", analysis["levels"], "个")
     print_dist("用户大会员分布", analysis["vips"], "个")
     print_dist("用户性别分布", analysis["sexes"], "个")
+    print()
+
+    # TODO: refactor pendants and cardbags
+    # TODO: readd fans medal
     print_dist("用户头像框分布", analysis["pendants"], "次")
     print_dist("用户数字周边分布", analysis["cardbags"], "次")
 
-    # print(f"粉丝团名称: {analysis['fans_name']}")
-    # print(f"粉丝团成员总数: {analysis['fans_count']}")
-    # print_dist("粉丝团等级分布", analysis["fans_levels"], "个")
     print_dist("评论IP属地分布", analysis["locations"], "次")
-    # print_dist("评论发布时间分布", analysis["comment_intervals"], "次")
+    # DEBUG: print_dist("评论发布时间分布", analysis["comment_intervals"], "次")
 
     print("=" * 40)
-    # print(f"分析结果已保存到 {output}")
+    # DEBUG: print(f"分析结果已保存到 {output}")

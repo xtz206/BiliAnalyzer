@@ -147,20 +147,21 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
     """
 
     def generate_analysis(self):
-        # video_info: VideoInfo = self.video_info
+        # DEBUG: video_info: VideoInfo = self.video_info
         reply_count: int = len(self.replies)
         member_count: int = len(self.members)
         uid_lengths: Counter[int] = self.analyze_uid_lengths()
         levels: Counter[int] = self.analyze_levels()
         vips: Counter[str] = self.analyze_vips()
         sexes: Counter[str] = self.analyze_sexes()
+        # TODO: refactor pendants and cardbags
+        # TODO: readd fans medal
         pendants: Counter[str] = self.analyze_pendants()
         cardbags: Counter[str] = self.analyze_cardbags()
-        # fans_name, fans_count, fans_levels = self.analyze_fans()
         locations: Counter[str] = self.analyze_locations()
-        # comment_intervals: Counter[str] = self.analyze_comment_intervals()
+        # DEBUG: comment_intervals: Counter[str] = self.analyze_comment_intervals()
         analysis = {
-            # "video_info": video_info,
+            # DEBUG: "video_info": video_info,
             "reply_count": reply_count,
             "member_count": member_count,
             "uid_lengths": uid_lengths,
@@ -169,11 +170,10 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
             "sexes": sexes,
             "pendants": pendants,
             "cardbags": cardbags,
-            # "fans_name": fans_name,
-            # "fans_count": fans_count,
-            # "fans_levels": fans_levels,
+            # TODO: refactor pendants and cardbags
+            # TODO: readd fans medal
             "locations": locations,
-            # "comment_intervals": comment_intervals,
+            # DEBUG: "comment_intervals": comment_intervals,
         }
         return analysis
 

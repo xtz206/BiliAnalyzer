@@ -45,6 +45,7 @@ class Fetcher:
             if limit == 0
             else range(2, min(page_count, limit) + 1)
         )
+        # TODO: refactor page_index_range
 
         # TODO: early termination if empty page is fetched
         semaphore = asyncio.Semaphore(5)
