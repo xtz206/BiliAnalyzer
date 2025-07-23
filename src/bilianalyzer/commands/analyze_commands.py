@@ -7,17 +7,15 @@ from ..parse import ReplyParser, MemberParser, VideoParser
 
 
 @click.argument("bvid", type=str)
-# TODO: readd analysis output
-# DEBUG:
-# @click.option(
-#     "-o",
-#     "--output",
-#     type=str,
-#     default="analysis_results.json",
-#     help="Output filepath for analysis results (default: analysis_results.json)",
-# )
+@click.option(
+    "-o",
+    "--output",
+    type=str,
+    default=None,
+    help="Output filepath for Analysis",
+)
 @click.command(help="Analyze comments from video with given BVID")
-def analyze(bvid):
+def analyze(bvid, output):
     """Analyze comments from video with given BVID"""
 
     video_parser = VideoParser()
@@ -37,7 +35,7 @@ def analyze(bvid):
     replies = reply_db.load_replies_by_resource(bvid2aid(bvid), CommentResourceType.VIDEO)
     members = list(member_parser.unroll_members(replies))
     analyzer = CommentAnalyzer(video, members, replies)
-    analysis = analyzer.generate_analysis()
+    analysis = analyzer.get_analysis()
 
     print("=" * 40)
     print("BiliAnalyzer 评论分析报告")
@@ -86,4 +84,7 @@ def analyze(bvid):
     print_dist("评论发布时间分布", analysis["comment_intervals"], "次")
 
     print("=" * 40)
-    # DEBUG: print(f"分析结果已保存到 {output}")
+
+    if output is not None:
+    analyzer.save_analysis(output)
+        print(f"分析结果已保存至{output}")

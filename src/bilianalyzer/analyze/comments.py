@@ -1,8 +1,12 @@
-from typing import Optional
+import os
+import json
+from typing import Optional, NewType
 from collections import Counter
 from collections.abc import Collection
 
 from .. import Member, Reply, Video
+
+Analysis = NewType("Analysis", dict[str, str | int | Counter[str] | Counter[int]])
 
 
 class MemberAnalyzer:
@@ -102,6 +106,7 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
         self.video: Video = video
         MemberAnalyzer.__init__(self, members)
         ReplyAnalyzer.__init__(self, replies)
+        self.analysis: Optional[Analysis] = None
 
     @staticmethod
     def _calc_interval_name(start_time: int, end_time: int) -> str:
@@ -151,7 +156,7 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
 
         return comment_intervals
 
-    def generate_analysis(self):
+    def generate_analysis(self) -> Analysis:
         video: Video = self.video
         reply_count: int = len(self.replies)
         member_count: int = len(self.members)
@@ -165,32 +170,37 @@ class CommentAnalyzer(MemberAnalyzer, ReplyAnalyzer):
         cardbags: Counter[str] = self.analyze_cardbags()
         locations: Counter[str] = self.analyze_locations()
         comment_intervals: Counter[str] = self.analyze_comment_intervals()
-        analysis = {
-            "bvid": video.bvid,
-            "title": video.title,
-            "description": video.description,
-            "publish_time": video.publish_time,
-            "upload_time": video.upload_time,
-            "reply_count": reply_count,
-            "member_count": member_count,
-            "uid_lengths": uid_lengths,
-            "levels": levels,
-            "vips": vips,
-            "sexes": sexes,
-            "pendants": pendants,
-            "cardbags": cardbags,
-            # TODO: refactor pendants and cardbags
-            # TODO: readd fans medal
-            "locations": locations,
-            "comment_intervals": comment_intervals,
-        }
+        analysis = Analysis(
+            {
+                "bvid": video.bvid,
+                "title": video.title,
+                "description": video.description,
+                "publish_time": video.publish_time,
+                "upload_time": video.upload_time,
+                "reply_count": reply_count,
+                "member_count": member_count,
+                "uid_lengths": uid_lengths,
+                "levels": levels,
+                "vips": vips,
+                "sexes": sexes,
+                "pendants": pendants,
+                "cardbags": cardbags,
+                # TODO: refactor pendants and cardbags
+                # TODO: readd fans medal
+                "locations": locations,
+                "comment_intervals": comment_intervals,
+            }
+        )
         return analysis
 
+    def get_analysis(self) -> Analysis:
+        if self.analysis is None:
+            self.analysis = self.generate_analysis()
+        return self.analysis
 
-# DEBUG:
-"""
-def save_analysis(results: Analysis, filepath: FilePath) -> None:
-    os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=4)
-"""
+    def save_analysis(self, filepath: str) -> None:
+        if self.analysis is None:
+            return
+        os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(self.analysis, f, ensure_ascii=False, indent=4)
