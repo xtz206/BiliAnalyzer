@@ -38,8 +38,7 @@ class ReplyFetcher:
         page: ApiRaw = await self.fetch_page()
         reply_count: int = page.get("page", {}).get("count", 0)
         page_count: int = math.ceil(reply_count / COMMENTS_PER_PAGE)
-        raw_replies: list[ApiRaw] = self.unroll_page(page)
-        # TODO: hot replies (in field `top_replies`) and pinned replies (in field `upper-top`)
+        raw_replies: list[ApiRaw] = self.unroll_page(page) + self.unroll_hots(page)
         page_index_range: Collection[int] = (
             range(2, page_count + 1)
             if limit == 0
@@ -71,3 +70,12 @@ class ReplyFetcher:
         if page.get("replies") is None:
             return []
         return page["replies"]
+
+    @staticmethod
+    def unroll_hots(page: ApiRaw) -> list[ApiRaw]:
+        raw_replies: list[ApiRaw] = []
+        if page.get("top_replies") is not None:
+            raw_replies.extend(page["top_replies"])
+        if page.get("upper") is not None:
+            raw_replies.append(page["upper"]["top"])
+        return raw_replies
