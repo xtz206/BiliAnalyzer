@@ -76,6 +76,6 @@ class ReplyFetcher:
         raw_replies: list[ApiRaw] = []
         if page.get("top_replies") is not None:
             raw_replies.extend(page["top_replies"])
-        if page.get("upper") is not None:
+        if page.get("upper") is not None and page["upper"].get("top") is not None:
             raw_replies.append(page["upper"]["top"])
         return raw_replies
