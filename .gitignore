@@ -211,8 +211,5 @@ __marimo__/
 
 # Temporary Files
 /temp
-/BV*.json
-/comments.json
-/analysis_results.json
-/video_info.json
 /credential.json
+bilianalyzer*.db

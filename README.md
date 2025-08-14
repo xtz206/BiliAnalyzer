@@ -30,14 +30,12 @@ uv run -m bilianalyzer auth status
 ### Fetch Comments
 
 ``` shell
-uv run -m bilianalyzer fetch <bvid> [-o <path/to/comments.json>]
-# make sure you have logged in first
-# otherwise the file will be empty
+uv run -m bilianalyzer fetch <bvid> [--raw]
 # <bvid> is the Bilibili video ID, e.g. BV1xxxx
 ```
 
 ### Analyze Comments
 
 ``` shell
-uv run -m bilianalyzer analyze <path/to/comments.json> [-o <path/to/analysis_results.json>]
+uv run -m bilianalyzer analyze <bvid>
 ```
