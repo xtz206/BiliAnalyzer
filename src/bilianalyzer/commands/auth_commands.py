@@ -16,8 +16,8 @@ def status():
 @auth.command()
 def login():
     """Login and Store Cookies for BiliAnalyzer"""
-    sessdata: str = click.prompt("Please enter your sessdata cookie for bilibili: ")
-    bili_jct: str = click.prompt("Please enter your bili_jct cookie for bilibili: ")
+    sessdata: str = click.prompt("Please enter your sessdata cookie for bilibili")
+    bili_jct: str = click.prompt("Please enter your bili_jct cookie for bilibili")
     try:
         credential = login_from_cookies(sessdata=sessdata, bili_jct=bili_jct)
     except ValueError as error:
