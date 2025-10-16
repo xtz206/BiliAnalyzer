@@ -39,6 +39,11 @@ class Reply:
 
 @dataclass
 class Video:
+    """
+    
+    NOTE: 注意和 bilibili_api.video.Video 区分开来
+    这个类是用来存储视频的元信息的
+    """
 
     bvid: str
     title: str

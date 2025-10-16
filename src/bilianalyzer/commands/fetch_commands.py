@@ -44,22 +44,27 @@ def fetch(bvid, limit, raw, no_auth):
     member_parser = MemberParser()
     reply_parser = ReplyParser(member_parser)
 
-    # fetchers
-    video_fetcher = VideoFetcher(bvid, credential, video_parser)
-    reply_fetcher = ReplyFetcher(bvid, credential, reply_parser)
-
     # databases
     raw_db = RawDatabase("bilianalyzer.db")
     video_db = VideoDatabase("bilianalyzer.db", video_parser)
     member_db = MemberDatabase("bilianalyzer.db")
     reply_db = ReplyDatabase("bilianalyzer.db", member_db)
 
-    raw_video = sync(video_fetcher.fetch_raw_video())
-    raw_replies = sync(reply_fetcher.fetch_raw_replies(limit=limit))
+    # fetchers
+    video_fetcher = VideoFetcher(bvid, credential, video_parser, raw_db)
+    reply_fetcher = ReplyFetcher(bvid, credential, reply_parser, raw_db)
 
-    if raw:
-        raw_db.save_raw_replies(raw_replies)
-        raw_db.save_raw_video(raw_video)
+    raw_video = sync(video_fetcher.fetch_raw_video())
+    raw_db.save_raw_video(raw_video)
+
+    raw_replies = sync(reply_fetcher.fetch_raw_replies(limit=limit))
+    raw_db.save_raw_replies(raw_replies)
+
+    if not raw:
+        for raw_reply in raw_replies:
+            if not isinstance(raw_reply.get("rpid"), int):
+                continue
+            raw_db.delete_raw_reply_by_rpid(raw_reply["rpid"])
 
     video = video_parser.parse_from_api(raw_video)
     replies = reply_parser.batch_parse_from_api(raw_replies)

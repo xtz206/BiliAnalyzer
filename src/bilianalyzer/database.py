@@ -10,6 +10,8 @@ from .parse import MemberParser, ReplyParser, VideoParser, Record, ApiRaw
 
 
 class RawDatabase:
+    # TODO: add `fetch timestamp` field to raw tables
+    # TODO: add `delete_replies_by_fetch_timestamp` method
     def __init__(self, dbpath: str):
         self.connection = sqlite3.connect(dbpath)
         self.cursor = self.connection.cursor()
@@ -121,6 +123,16 @@ class RawDatabase:
                 raw_replies.append(raw_reply)
         return raw_replies
 
+    def delete_raw_reply_by_rpid(self, rpid: int) -> None:
+        self.cursor.execute(
+            """
+            DELETE FROM RAW_REPLIES
+            WHERE RPID = ?
+            """,
+            (rpid,),
+        )
+        self.connection.commit()
+
     def save_raw_video(self, raw_video: ApiRaw) -> None:
         self.cursor.execute(
             """
@@ -149,6 +161,16 @@ class RawDatabase:
             return None
         (raw_video,) = record
         return ApiRaw(json.loads(zlib.decompress(raw_video).decode("utf-8")))
+
+    def delete_raw_video_by_bvid(self, bvid: str) -> None:
+        self.cursor.execute(
+            """
+            DELETE FROM RAW_VIDEOS
+            WHERE BVID = ?
+            """,
+            (bvid,),
+        )
+        self.connection.commit()
 
 
 class MemberDatabase:
