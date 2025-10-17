@@ -3,7 +3,7 @@ from bilibili_api import Credential, sync
 from ..auth import load_credential
 from ..fetch.comments import ReplyFetcher
 from ..fetch.videos import VideoFetcher
-from ..database import RawDatabase, ReplyDatabase, MemberDatabase, VideoDatabase
+from ..database import ReplyDatabase, MemberDatabase, VideoDatabase, RawDatabase
 from ..parse import MemberParser, ReplyParser, VideoParser
 
 
@@ -20,7 +20,12 @@ from ..parse import MemberParser, ReplyParser, VideoParser
     "-r",
     "--raw",
     is_flag=True,
-    help="Store raw replies in the database additionally",
+    help="Only fetch and store raw data without parsing",
+)
+@click.option(
+    "--no-raw",
+    is_flag=True,
+    help="Parse and store data, but do not store raw data",
 )
 @click.option(
     "--no-auth",
@@ -28,8 +33,11 @@ from ..parse import MemberParser, ReplyParser, VideoParser
     help="Skip authentication and fetch comments without credentials",
 )
 @click.command(help="Fetch comments for a video with given BVID")
-def fetch(bvid, limit, raw, no_auth):
+def fetch(bvid, limit, raw, no_raw, no_auth):
     """Fetch comments for a video with given BVID"""
+
+    if raw and no_raw:
+        raise click.UsageError("Options '--raw' and '--no-raw' are mutually exclusive.")
 
     credential: Credential = Credential()
     if not no_auth:
@@ -51,25 +59,17 @@ def fetch(bvid, limit, raw, no_auth):
     reply_db = ReplyDatabase("bilianalyzer.db", member_db)
 
     # fetchers
-    video_fetcher = VideoFetcher(bvid, credential, video_parser, raw_db)
-    reply_fetcher = ReplyFetcher(bvid, credential, reply_parser, raw_db)
+    if raw:
+        video_fetcher = VideoFetcher(bvid, credential, video_parser, raw_db=raw_db)
+        reply_fetcher = ReplyFetcher(bvid, credential, reply_parser, raw_db=raw_db)
+    elif no_raw:
+        video_fetcher = VideoFetcher(bvid, credential, video_parser, video_db=video_db)
+        reply_fetcher = ReplyFetcher(bvid, credential, reply_parser, reply_db=reply_db)
+    else:
+        video_fetcher = VideoFetcher(bvid, credential, video_parser, video_db, raw_db)
+        reply_fetcher = ReplyFetcher(bvid, credential, reply_parser, reply_db, raw_db)
 
-    raw_video = sync(video_fetcher.fetch_raw_video())
-    raw_db.save_raw_video(raw_video)
-
-    raw_replies = sync(reply_fetcher.fetch_raw_replies(limit=limit))
-    raw_db.save_raw_replies(raw_replies)
-
-    if not raw:
-        for raw_reply in raw_replies:
-            if not isinstance(raw_reply.get("rpid"), int):
-                continue
-            raw_db.delete_raw_reply_by_rpid(raw_reply["rpid"])
-
-    video = video_parser.parse_from_api(raw_video)
-    replies = reply_parser.batch_parse_from_api(raw_replies)
-    members = list(member_parser.unroll_members(replies))
-
-    video_db.save_video(video)
-    reply_db.save_replies(replies)
-    member_db.save_members(members)
+    # fetch and (if needed) store
+    sync(video_fetcher.fetch_video())
+    sync(reply_fetcher.fetch_replies(limit=limit))
+    

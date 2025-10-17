@@ -9,7 +9,7 @@ from bilibili_api.comment import CommentResourceType, get_comments
 
 from .. import Reply
 from ..parse import ApiRaw, ReplyParser
-from ..database import RawDatabase
+from ..database import RawDatabase, ReplyDatabase
 
 COMMENTS_PER_PAGE = 20
 
@@ -20,30 +20,35 @@ class ReplyFetcher:
         bvid: str,
         credential: Optional[Credential] = None,
         reply_parser: Optional[ReplyParser] = None,
-        raw_database: Optional[RawDatabase] = None,
+        reply_db: Optional[ReplyDatabase] = None,
+        raw_db: Optional[RawDatabase] = None,
     ):
         self.bvid: str = bvid
         self.credential: Optional[Credential] = credential
         if reply_parser is None:
             reply_parser = ReplyParser()
         self.reply_parser: ReplyParser = reply_parser
-        self.raw_database: Optional[RawDatabase] = raw_database
+        self.reply_db: Optional[ReplyDatabase] = reply_db
+        self.raw_db: Optional[RawDatabase] = raw_db
 
     async def fetch_page(self, index: int = 1) -> ApiRaw:
-        return await get_comments(
+        page: ApiRaw = await get_comments(
             bvid2aid(self.bvid),
             CommentResourceType.VIDEO,
             index,
             credential=self.credential,
         )
+        if self.raw_db is not None:
+            self.raw_db.save_raw_replies(self.unroll_page(page))
+        return page
 
     async def fetch_raw_replies(self, limit: int = 20) -> list[ApiRaw]:
+        # TODO: recursively fetch sub-replies
         page: ApiRaw = await self.fetch_page()
         reply_count: int = page.get("page", {}).get("count", 0)
         page_count: int = math.ceil(reply_count / COMMENTS_PER_PAGE)
         raw_replies: list[ApiRaw] = self.unroll_page(page) + self.unroll_hots(page)
-        # TODO: rename `page_index_range` to `page_indices`
-        page_index_range: Collection[int] = (
+        page_indices: Collection[int] = (
             range(2, page_count + 1)
             if limit == 0
             else range(2, min(page_count, limit) + 1)
@@ -59,21 +64,20 @@ class ReplyFetcher:
                 await asyncio.sleep(0.5 + random.random())
                 return await self.fetch_page(page_index)
 
-        # TODO: rename `index` to `page_index`
-        # TODO: rename `tasks` to `fetch_tasks`
-        tasks = [fetch_page_with_semaphore(index) for index in page_index_range]
-        pages: list[ApiRaw] = await asyncio.gather(*tasks)
+        fetch_tasks = [fetch_page_with_semaphore(page_index) for page_index in page_indices]
+        pages: list[ApiRaw] = await asyncio.gather(*fetch_tasks)
 
         for page in pages:
             raw_replies.extend(self.unroll_page(page))
-            if self.raw_database is not None:
-                self.raw_database.save_raw_replies(self.unroll_page(page))
 
         return raw_replies
 
     async def fetch_replies(self, limit: int = 20) -> list[Reply]:
         raw_replies: list[ApiRaw] = await self.fetch_raw_replies(limit)
-        return self.reply_parser.batch_parse_from_api(raw_replies)
+        replies: list[Reply] =  self.reply_parser.batch_parse_from_api(raw_replies)
+        if self.reply_db is not None:
+            self.reply_db.save_replies(replies)
+        return replies
 
     @staticmethod
     def unroll_page(page: ApiRaw) -> list[ApiRaw]:
