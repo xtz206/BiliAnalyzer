@@ -23,11 +23,11 @@ def analyze(bvid, output):
     member_parser = MemberParser()
     reply_parser = ReplyParser(member_parser)
 
-    videoe_db = VideoDatabase("bilianalyzer.db", video_parser)
+    video_db = VideoDatabase("bilianalyzer.db", video_parser)
     member_db = MemberDatabase("bilianalyzer.db", member_parser)
     reply_db = ReplyDatabase("bilianalyzer.db", member_db, reply_parser)
 
-    video = videoe_db.load_video_by_bvid(bvid)
+    video = video_db.load_video_by_bvid(bvid)
     if video is None:
         print(f"No video found for BVID {bvid}.")
         print(f"Please run 'uv run -m bilianalyzer fetch {bvid}' first")
